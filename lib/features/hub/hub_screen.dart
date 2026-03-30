@@ -419,9 +419,11 @@ class _HubScreenState extends State<HubScreen> {
       title: const Text('GatherHype', style: TextStyle(fontWeight: FontWeight.bold)),
       leading: isWide
           ? null
-          : IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+          : Builder(
+              builder: (ctx) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
             ),
       actions: [
         if (isWide) SearchBar2(onSelected: _onSearchSelect),
