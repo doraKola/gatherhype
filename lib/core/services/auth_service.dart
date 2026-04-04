@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/browser_client.dart' if (dart.library.io) 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +57,28 @@ class AuthService {
       return data;
     }
     throw Exception('Login failed: ${res.body}');
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle(String detectedLanguage) async {
+    final googleUser = await GoogleSignIn(
+      clientId: '767939825860-q8addqv23umjrcl4h21omtp0jotaqurk.apps.googleusercontent.com',
+    ).signIn();
+    if (googleUser == null) throw Exception('Google sign-in cancelled');
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    if (idToken == null) throw Exception('No ID token from Google');
+
+    final res = await http.post(
+      Uri.parse('$_baseUrl/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken, 'detectedLanguage': detectedLanguage}),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      await _saveSession(data['token'], data['defaultLanguage']);
+      return data;
+    }
+    throw Exception('Google login failed: ${res.body}');
   }
 
   Future<Map<String, dynamic>> register(String email, String password, String detectedLanguage) async {

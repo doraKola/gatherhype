@@ -18,6 +18,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
 
+  Future<void> _googleLogin() async {
+    if (_loading) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService().loginWithGoogle('en');
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HubScreen()));
+      }
+    } catch (_) {
+      setState(() { _error = 'Google sign-in failed'; _loading = false; });
+    }
+  }
+
   Future<void> _login() async {
     if (_loading) return;
     setState(() { _loading = true; _error = null; });
@@ -85,6 +98,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: _loading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Log In'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _loading ? null : _googleLogin,
+                icon: const Icon(Icons.g_mobiledata, size: 22),
+                label: const Text('Continue with Google'),
               ),
               const SizedBox(height: 20),
               Row(
