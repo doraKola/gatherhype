@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/services/auth_service.dart';
+import 'widgets/google_sign_in_button.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../hub/hub_screen.dart';
@@ -17,6 +21,37 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPass = false;
   bool _loading = false;
   String? _error;
+  StreamSubscription<GoogleSignInAccount?>? _googleSub;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      _googleSub = AuthService().googleSignIn.onCurrentUserChanged.listen(_onGoogleUser);
+      AuthService().googleSignIn.signInSilently();
+    }
+  }
+
+  Future<void> _onGoogleUser(GoogleSignInAccount? user) async {
+    if (user == null || !mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await AuthService().loginWithGoogleAccount(user, 'en');
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HubScreen()));
+      }
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Google sign-in failed'; _loading = false; });
+    }
+  }
+
+  @override
+  void dispose() {
+    _googleSub?.cancel();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _googleLogin() async {
     if (_loading) return;
@@ -100,11 +135,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     : const Text('Log In'),
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _loading ? null : _googleLogin,
-                icon: const Icon(Icons.g_mobiledata, size: 22),
-                label: const Text('Continue with Google'),
-              ),
+              if (kIsWeb)
+                buildGoogleSignInButton()
+              else
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _googleLogin,
+                  icon: const Icon(Icons.g_mobiledata, size: 22),
+                  label: const Text('Continue with Google'),
+                ),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -13,6 +13,13 @@ class AuthService {
 
   final String _baseUrl = '${AppConfig.apiUrl}/auth';
 
+  final _googleSignIn = GoogleSignIn(
+    clientId: '767939825860-q8addqv23umjrcl4h21omtp0jotaqurk.apps.googleusercontent.com',
+    scopes: ['email'],
+  );
+
+  GoogleSignIn get googleSignIn => _googleSignIn;
+
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(AppConfig.tokenKey);
@@ -60,10 +67,22 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> loginWithGoogle(String detectedLanguage) async {
-    final googleUser = await GoogleSignIn(
-      clientId: '767939825860-q8addqv23umjrcl4h21omtp0jotaqurk.apps.googleusercontent.com',
-    ).signIn();
+    final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) throw Exception('Google sign-in cancelled');
+    return _completeGoogleLogin(googleUser, detectedLanguage);
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogleAccount(
+    GoogleSignInAccount account,
+    String detectedLanguage,
+  ) async {
+    return _completeGoogleLogin(account, detectedLanguage);
+  }
+
+  Future<Map<String, dynamic>> _completeGoogleLogin(
+    GoogleSignInAccount googleUser,
+    String detectedLanguage,
+  ) async {
     final googleAuth = await googleUser.authentication;
     final idToken = googleAuth.idToken;
     if (idToken == null) throw Exception('No ID token from Google');
