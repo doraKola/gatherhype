@@ -31,7 +31,7 @@ class GatherHypeApp extends StatelessWidget {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeModeNotifier,
       builder: (_, mode, __) => MaterialApp(
-        title: 'G',
+        title: 'GatherHype',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
