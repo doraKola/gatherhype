@@ -34,10 +34,11 @@ class Link {
       );
 
   String getTitle(String lang) {
-    return overrides?[lang]?['title'] ??
+    final t = overrides?[lang]?['title'] ??
         translations?[lang]?['title'] ??
         title ??
         url;
+    return t.length > 100 ? '${t.substring(0, 100)}…' : t;
   }
 
   String getDescription(String lang) {

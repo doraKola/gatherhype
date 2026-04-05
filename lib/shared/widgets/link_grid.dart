@@ -31,8 +31,7 @@ class LinkGrid extends StatefulWidget {
 class _LinkGridState extends State<LinkGrid> {
   final Map<String, String> _activeLang = {};
 
-  String _lang(Link link) =>
-      _activeLang[link.id] ?? widget.globalLanguage;
+  String _lang(Link link) => _activeLang[link.id] ?? widget.globalLanguage;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +54,7 @@ class _LinkGridState extends State<LinkGrid> {
       padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 320,
-        childAspectRatio: 1.4,
+        childAspectRatio: 1.1, // Adjusted to prevent overflow by making cards taller
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -144,75 +143,46 @@ class _LinkCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: SingleChildScrollView(
-            child: Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              // Top row: favicon + title + menu
+              // Top row: favicon + title (Horizontal Scroll) + menu
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: Text(title),
-                         content: desc.isNotEmpty
-                                  ? ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxHeight: MediaQuery.of(context).size.height * 0.5,
-                                      ),
-                                      child: SingleChildScrollView(
-                                        child: Text(desc),
-                                      ),
-                                    )
-                                  : null,
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                    ),
+                    onTap: () => _showDetailsDialog(context, title, desc),
                     child: _Favicon(url: link.url),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                      ),
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                    itemBuilder: (_) => [
-                      if (onEdit != null)
-                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit')])),
-                      if (onMove != null)
-                        const PopupMenuItem(value: 'move', child: Row(children: [Icon(Icons.drive_file_move_outlined, size: 16), SizedBox(width: 8), Text('Move')])),
-                      if (onDelete != null)
-                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])),
-                    ],
-                    onSelected: (v) {
-                      if (v == 'edit') onEdit?.call();
-                      if (v == 'move') onMove?.call();
-                      if (v == 'delete') onDelete?.call();
-                    },
-                  ),
+                  _buildPopupMenu(theme),
                 ],
               ),
+              
+              // Description (Scrollable within a fixed height "cut")
               if (desc.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(
-                  desc,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 40), 
+                  child: SingleChildScrollView(
+                    child: Text(
+                      desc,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ),
                 ),
               ],
+
+              // Image (Fixed height to prevent pushing content out)
               if (link.imageUrl != null && link.imageUrl!.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 ClipRRect(
@@ -226,8 +196,10 @@ class _LinkCard extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 8),
-              // Language chips
+
+              const Spacer(), // Pushes chips to the bottom
+              
+              // Language chips (Horizontal Scroll)
               if (availableLangs.length > 1)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -261,8 +233,44 @@ class _LinkCard extends StatelessWidget {
                 ),
             ],
           ),
-          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPopupMenu(ThemeData theme) {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant),
+      itemBuilder: (_) => [
+        if (onEdit != null)
+          const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit')])),
+        if (onMove != null)
+          const PopupMenuItem(value: 'move', child: Row(children: [Icon(Icons.drive_file_move_outlined, size: 16), SizedBox(width: 8), Text('Move')])),
+        if (onDelete != null)
+          const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])),
+      ],
+      onSelected: (v) {
+        if (v == 'edit') onEdit?.call();
+        if (v == 'move') onMove?.call();
+        if (v == 'delete') onDelete?.call();
+      },
+    );
+  }
+
+  void _showDetailsDialog(BuildContext context, String title, String desc) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: desc.isNotEmpty
+            ? ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+                child: SingleChildScrollView(child: Text(desc)),
+              )
+            : null,
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
       ),
     );
   }
