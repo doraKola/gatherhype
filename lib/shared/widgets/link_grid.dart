@@ -31,7 +31,22 @@ class LinkGrid extends StatefulWidget {
 class _LinkGridState extends State<LinkGrid> {
   final Map<String, String> _activeLang = {};
 
-  String _lang(Link link) => _activeLang[link.id] ?? widget.globalLanguage;
+  String _lang(Link link) {
+    if (_activeLang.containsKey(link.id)) return _activeLang[link.id]!;
+    final available = link.availableLanguages();
+    if (available.isEmpty || available.contains(widget.globalLanguage)) {
+      return widget.globalLanguage;
+    }
+    return available.first;
+  }
+
+  @override
+  void didUpdateWidget(LinkGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.globalLanguage != widget.globalLanguage) {
+      _activeLang.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,8 +158,10 @@ class _LinkCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Top row: favicon + title (Horizontal Scroll) + menu
               Row(
@@ -197,14 +214,14 @@ class _LinkCard extends StatelessWidget {
                 ),
               ],
 
-              const Spacer(), // Pushes chips to the bottom
+              const SizedBox(height: 8),
               
               // Language chips (Horizontal Scroll)
               if (availableLangs.length > 1)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: availableLangs.map((lang) => Padding(
+                    children: ([activeLang, ...availableLangs.where((l) => l != activeLang)]).map((lang) => Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: GestureDetector(
                         onTap: () => onLangChange(lang),
@@ -212,7 +229,7 @@ class _LinkCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: activeLang == lang
-                                ? theme.colorScheme.primaryContainer
+                                ? Colors.blue
                                 : theme.colorScheme.surfaceVariant,
                             borderRadius: BorderRadius.circular(4),
                           ),
@@ -222,7 +239,7 @@ class _LinkCard extends StatelessWidget {
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
                               color: activeLang == lang
-                                  ? theme.colorScheme.primary
+                                  ? Colors.white
                                   : theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -232,6 +249,7 @@ class _LinkCard extends StatelessWidget {
                   ),
                 ),
             ],
+            ),
           ),
         ),
       ),
