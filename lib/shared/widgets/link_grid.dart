@@ -144,13 +144,39 @@ class _LinkCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Top row: favicon + title + menu
               Row(
                 children: [
-                  _Favicon(url: link.url),
+                  GestureDetector(
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: Text(title),
+                         content: desc.isNotEmpty
+                                  ? ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxHeight: MediaQuery.of(context).size.height * 0.5,
+                                      ),
+                                      child: SingleChildScrollView(
+                                        child: Text(desc),
+                                      ),
+                                    )
+                                  : null,
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    child: _Favicon(url: link.url),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -200,7 +226,7 @@ class _LinkCard extends StatelessWidget {
                   ),
                 ),
               ],
-              const Spacer(),
+              const SizedBox(height: 8),
               // Language chips
               if (availableLangs.length > 1)
                 SingleChildScrollView(
@@ -234,6 +260,7 @@ class _LinkCard extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),
