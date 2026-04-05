@@ -23,7 +23,9 @@ class _SearchBar2State extends State<SearchBar2> {
   void initState() {
     super.initState();
     _focus.addListener(() {
-      if (!_focus.hasFocus) _closeOverlay();
+      if (!_focus.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 200), _closeOverlay);
+      }
     });
   }
 
