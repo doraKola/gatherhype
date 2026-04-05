@@ -230,20 +230,25 @@ class _HubScreenState extends State<HubScreen> {
   //  FILTER
   // ─────────────────────────────────────
 
-  void _applyFilter() {
-    final q = _filterCtrl.text.trim().toLowerCase();
+  String _resolveLanguage(Link link) {
+    final available = link.availableLanguages();
+    if (available.isEmpty || available.contains(_globalLanguage)) return _globalLanguage;
+    return available.first;
+  }
+
+  void _applyFilter([String? overrideQuery]) {
+    final q = (overrideQuery ?? _filterCtrl.text).trim().toLowerCase();
     if (q.isEmpty) {
       _links = List.from(_allLinks);
       return;
     }
     _links = _allLinks.where((link) {
-      final title = link.getTitle(_globalLanguage).toLowerCase();
-      final desc = link.getDescription(_globalLanguage).toLowerCase();
-      switch (_filterMode) {
-        case 'title': return title.contains(q);
-        case 'description': return desc.contains(q);
-        default: return title.contains(q) || desc.contains(q);
-      }
+      final lang = _resolveLanguage(link);
+      final title = link.getTitle(lang).toLowerCase();
+      final desc = link.getDescription(lang).toLowerCase();
+      if (_filterMode == 'title') return title.contains(q);
+      if (_filterMode == 'description') return desc.contains(q);
+      return title.contains(q) || desc.contains(q);
     }).toList();
   }
 
@@ -681,7 +686,7 @@ class _HubScreenState extends State<HubScreen> {
             width: 200,
             child: TextField(
               controller: _filterCtrl,
-              onChanged: (_) => setState(_applyFilter),
+              onChanged: (value) => setState(() => _applyFilter(value)),
               decoration: InputDecoration(
                 hintText: 'Filter links',
                 prefixIcon: IconButton(
