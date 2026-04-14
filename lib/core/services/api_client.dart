@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/browser_client.dart' if (dart.library.io) 'package:http/http.dart';
 import 'auth_service.dart';
 
 class ApiClient {
@@ -9,14 +7,7 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  http.Client _buildClient() {
-    if (kIsWeb) {
-      final client = BrowserClient();
-      client.withCredentials = true;
-      return client;
-    }
-    return http.Client();
-  }
+  http.Client _buildClient() => http.Client();
 
   Future<Map<String, String>> _headers() async {
     final token = await AuthService().getToken();

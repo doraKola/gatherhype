@@ -6,7 +6,16 @@
       "Bash(flutter analyze:*)",
       "Bash(flutter run:*)",
       "Bash(xargs grep:*)",
-      "WebFetch(domain:pub.dev)"
+      "WebFetch(domain:pub.dev)",
+      "Bash(where java:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
+      "Bash(cmd:*)",
+      "Bash(keytool -help)",
+      "Bash(flutter --version)",
+      "Bash(ls \"/c/Program Files/Microsoft/jdk-\"*)",
+      "Bash(ls \"/c/Program Files/Java/\"*)",
+      "Bash(C:/Program Files/Android/Android Studio1/jbr/bin/keytool.exe:*)"
     ]
   }
 }

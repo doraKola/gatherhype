@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/browser_client.dart' if (dart.library.io) 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_config.dart';
 
@@ -25,14 +23,7 @@ class AuthService {
     return prefs.getString(AppConfig.tokenKey);
   }
 
-  http.Client _buildClient() {
-    if (kIsWeb) {
-      final client = BrowserClient();
-      client.withCredentials = true;
-      return client;
-    }
-    return http.Client();
-  }
+  http.Client _buildClient() => http.Client();
 
   Future<bool> refresh() async {
     final res = await _buildClient().post(

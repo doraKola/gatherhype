@@ -22,7 +22,7 @@ flutter run
 
 ## API
 
-Connects to `https://localhost:7287/api` by default.  
+Connects to `https://api.gatherhype.com/api` by default.  
 Change in `lib/core/utils/app_config.dart`.
 
 ## Project Structure
