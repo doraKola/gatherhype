@@ -56,9 +56,12 @@ class _HubScreenState extends State<HubScreen> {
   bool _langDropdownOpen = false;
 
   // ── UI ──
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _drawerOpen = false;
   bool _subfoldersOpen = true;
   String? _toast;
+  String? _topError;
+  bool _intentionalDrawerClose = false;
 
   // ── Move folder ──
   FolderTree? _folderToMove;
@@ -80,6 +83,12 @@ class _HubScreenState extends State<HubScreen> {
     _loadFolders();
     _loadFoldersTree();
     _loadUserLanguages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final width = MediaQuery.of(context).size.width;
+      if (width < 768) {
+        _scaffoldKey.currentState?.openDrawer();
+      }
+    });
   }
 
   // ─────────────────────────────────────
@@ -160,6 +169,12 @@ class _HubScreenState extends State<HubScreen> {
     if (folder == null) {
       _selectRoot();
       return;
+    }
+
+    final isWide = MediaQuery.of(context).size.width >= 768;
+    if (!isWide) {
+      _intentionalDrawerClose = true;
+      _scaffoldKey.currentState?.closeDrawer();
     }
 
     final id = folder is Folder ? folder.id : folder['id'] as String;
@@ -406,8 +421,23 @@ class _HubScreenState extends State<HubScreen> {
     final isWide = MediaQuery.of(context).size.width >= 768;
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: _buildAppBar(isWide),
       drawer: isWide ? null : _buildDrawer(),
+      onDrawerChanged: isWide
+          ? null
+          : (isOpened) {
+              if (!isOpened && _selectedFolderId == null && !_intentionalDrawerClose) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scaffoldKey.currentState?.openDrawer();
+                  setState(() => _topError = 'Please select a folder first');
+                  Future.delayed(const Duration(seconds: 3), () {
+                    if (mounted) setState(() => _topError = null);
+                  });
+                });
+              }
+              _intentionalDrawerClose = false;
+            },
       body: Stack(
         children: [
           isWide ? _buildWideLayout() : _buildNarrowLayout(),
@@ -514,6 +544,16 @@ class _HubScreenState extends State<HubScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_topError != null)
+          Container(
+            width: double.infinity,
+            color: Colors.red.shade700,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: Text(
+              _topError!,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
           child: Row(
@@ -546,6 +586,12 @@ class _HubScreenState extends State<HubScreen> {
               },
             ),
           ),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.logout),
+          title: const Text('Logout'),
+          onTap: _logout,
         ),
       ],
     );

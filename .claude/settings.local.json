@@ -15,7 +15,8 @@
       "Bash(flutter --version)",
       "Bash(ls \"/c/Program Files/Microsoft/jdk-\"*)",
       "Bash(ls \"/c/Program Files/Java/\"*)",
-      "Bash(C:/Program Files/Android/Android Studio1/jbr/bin/keytool.exe:*)"
+      "Bash(C:/Program Files/Android/Android Studio1/jbr/bin/keytool.exe:*)",
+      "Bash(dart analyze *)"
     ]
   }
 }
