@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/i18n_service.dart';
 import 'core/utils/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'features/hub/hub_screen.dart';
@@ -13,6 +15,7 @@ Future<void> main() async {
   final saved = prefs.getString('themeMode');
   if (saved == 'light') themeModeNotifier.value = ThemeMode.light;
   if (saved == 'dark') themeModeNotifier.value = ThemeMode.dark;
+  await I18nService.detectLang();
   runApp(const GatherHypeApp());
 }
 
@@ -30,13 +33,22 @@ class GatherHypeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeModeNotifier,
-      builder: (_, mode, __) => MaterialApp(
-        title: 'GatherHype',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: mode,
-        home: const _AuthGate(),
+      builder: (_, mode, __) => ValueListenableBuilder<String>(
+        valueListenable: I18nService.langNotifier,
+        builder: (_, lang, __) => MaterialApp(
+          title: 'GatherHype',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: mode,
+          builder: (context, child) => Directionality(
+            textDirection: !kIsWeb && I18nService.isRtlLang(lang)
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            child: child!,
+          ),
+          home: const _AuthGate(),
+        ),
       ),
     );
   }

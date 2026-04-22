@@ -3,6 +3,7 @@ import '../../core/models/folder_model.dart';
 import '../../core/models/link_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/folders_service.dart';
+import '../../core/services/i18n_service.dart';
 import '../../core/services/links_service.dart';
 import '../../core/services/user_service.dart';
 import '../../features/auth/login_screen.dart';
@@ -28,8 +29,8 @@ class _HubScreenState extends State<HubScreen> {
   final _authService = AuthService();
 
   // ── Folder state ──
-  List<dynamic> _folders = [];    // top-level (owned + virtual shared root)
-  List<dynamic> _subFolders = []; // children of selected folder
+  List<dynamic> _folders = [];
+  List<dynamic> _subFolders = [];
   List<dynamic> _sharedFolders = [];
   List<FolderTree> _foldersTree = [];
 
@@ -46,29 +47,27 @@ class _HubScreenState extends State<HubScreen> {
 
   // ── Filter ──
   final _filterCtrl = TextEditingController();
-  String _filterMode = 'both'; // 'both' | 'title' | 'description'
+  String _filterMode = 'both';
   bool _filterOpen = false;
   String? _highlightedLinkId;
 
   // ── Language ──
   String _globalLanguage = 'en';
   List<String> _allowedLanguages = [];
-  bool _langDropdownOpen = false;
 
   // ── UI ──
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _drawerOpen = false;
+  bool _intentionalDrawerClose = false;
   bool _subfoldersOpen = true;
   String? _toast;
   String? _topError;
-  bool _intentionalDrawerClose = false;
 
   // ── Move folder ──
   FolderTree? _folderToMove;
 
-  static const _sharedRoot = {
+  Map<String, dynamic> get _sharedRoot => {
     'id': '__shared__',
-    'name': 'With Me',
+    'name': I18nService.t('hub.withMe'),
     'isVirtual': true,
     'isShared': false,
   };
@@ -80,6 +79,7 @@ class _HubScreenState extends State<HubScreen> {
   @override
   void initState() {
     super.initState();
+    I18nService.langNotifier.addListener(_onLangChange);
     _loadFolders();
     _loadFoldersTree();
     _loadUserLanguages();
@@ -87,6 +87,33 @@ class _HubScreenState extends State<HubScreen> {
       final width = MediaQuery.of(context).size.width;
       if (width < 768) {
         _scaffoldKey.currentState?.openDrawer();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    I18nService.langNotifier.removeListener(_onLangChange);
+    _filterCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onLangChange() {
+    setState(() {
+      // update With Me name in folders list on language change
+      for (int i = 0; i < _folders.length; i++) {
+        final f = _folders[i];
+        if (f is Map && f['id'] == '__shared__') {
+          _folders[i] = {
+            'id': '__shared__',
+            'name': I18nService.t('hub.withMe'),
+            'isVirtual': true,
+            'isShared': false,
+          };
+        }
+      }
+      if (_selectedFolderId == '__shared__') {
+        _selectedFolderName = I18nService.t('hub.withMe');
       }
     });
   }
@@ -150,11 +177,17 @@ class _HubScreenState extends State<HubScreen> {
 
   Future<void> _loadUserLanguages() async {
     try {
-      final res = await _userService.getTranslationSettings();
-      final lang = await _authService.getDefaultLanguage();
+      final res = await _userService.getUserLanguages();
+      final defaultLang = res['defaultLanguage'] as String?;
+
+      // Set UI language from server's defaultLanguage
+      if (defaultLang != null) {
+        await I18nService.setLang(defaultLang);
+      }
+
       setState(() {
-        _allowedLanguages = List<String>.from(res['allowedLanguages'] ?? []);
-        _globalLanguage = res['defaultLanguage'] ?? lang ?? 'en';
+        _allowedLanguages = List<String>.from(res['preferredLanguages'] ?? []);
+        _globalLanguage = defaultLang ?? I18nService.currentLang;
       });
     } catch (_) {}
   }
@@ -179,18 +212,16 @@ class _HubScreenState extends State<HubScreen> {
 
     final id = folder is Folder ? folder.id : folder['id'] as String;
 
-    // Shared root
     if (id == '__shared__') {
       setState(() {
         _selectedFolderId = '__shared__';
-        _selectedFolderName = 'With Me';
+        _selectedFolderName = I18nService.t('hub.withMe');
         _links = [];
         _subFolders = _sharedFolders;
       });
       return;
     }
 
-    // Shared sub-folder
     if (folder is Folder && folder.isShared) {
       setState(() {
         _selectedFolderId = '__shared__';
@@ -201,7 +232,6 @@ class _HubScreenState extends State<HubScreen> {
       return;
     }
 
-    // Normal main folder
     final name = folder is Folder ? folder.name : folder['name'] as String;
     setState(() {
       _selectedFolderId = id;
@@ -294,8 +324,8 @@ class _HubScreenState extends State<HubScreen> {
     final parentId = folder is Folder ? folder.parentId : null;
 
     final confirmed = await showDeleteConfirmDialog(context,
-        title: 'Delete folder?',
-        body: 'Delete "$name" and all its links?');
+        title: I18nService.t('hub.deleteFolderTitle'),
+        body: '${I18nService.t('hub.deleteFolderConfirm')} "$name" ${I18nService.t('hub.deleteFolderSuffix')}');
     if (!confirmed) return;
 
     await _foldersService.deleteFolder(id);
@@ -341,13 +371,14 @@ class _HubScreenState extends State<HubScreen> {
   Future<void> _createLink(String url, String? folderId) async {
     await _linksService.createLink(CreateLinkRequest(url: url, folderId: folderId));
     _loadLinks(_selectedSubFolderId ?? _selectedFolderId);
-    _showToast('Link saved — translating to your languages...');
+    _showToast(I18nService.t('hub.linkSaved'));
   }
 
   Future<void> _deleteLink(Link link, String language) async {
     final title = link.getTitle(language);
     final confirmed = await showDeleteConfirmDialog(context,
-        title: 'Delete link?', body: 'Delete "$title"?');
+        title: I18nService.t('hub.deleteLinkTitle'),
+        body: '${I18nService.t('hub.deleteLinkConfirm')} "$title"?');
     if (!confirmed) return;
     await _linksService.deleteLink(link.id);
     _loadLinks(_selectedSubFolderId ?? _selectedFolderId);
@@ -430,7 +461,7 @@ class _HubScreenState extends State<HubScreen> {
               if (!isOpened && _selectedFolderId == null && !_intentionalDrawerClose) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scaffoldKey.currentState?.openDrawer();
-                  setState(() => _topError = 'Please select a folder first');
+                  setState(() => _topError = I18nService.t('hub.selectFolderFirst'));
                   Future.delayed(const Duration(seconds: 3), () {
                     if (mounted) setState(() => _topError = null);
                   });
@@ -462,28 +493,37 @@ class _HubScreenState extends State<HubScreen> {
             ),
       actions: [
         if (isWide) SearchBar2(onSelected: _onSearchSelect),
-        const SizedBox(width: 8),
-        if (_allowedLanguages.length > 1) _buildLangButton(),
+        const SizedBox(width: 4),
+        if (_allowedLanguages.length > 1) _buildContentLangButton(),
+        _buildUiLangButton(),
         ValueListenableBuilder<ThemeMode>(
           valueListenable: themeModeNotifier,
           builder: (_, mode, __) => IconButton(
             icon: Icon(mode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
-            tooltip: mode == ThemeMode.dark ? 'Light mode' : 'Dark mode',
+            tooltip: mode == ThemeMode.dark
+                ? I18nService.t('hub.lightMode')
+                : I18nService.t('hub.darkMode'),
             onPressed: toggleTheme,
           ),
         ),
-        IconButton(icon: const Icon(Icons.logout), onPressed: _logout, tooltip: 'Logout'),
+        IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: _logout,
+          tooltip: I18nService.t('hub.logout'),
+        ),
       ],
     );
   }
 
-  Widget _buildLangButton() {
+  // Content/link language switcher (existing)
+  Widget _buildContentLangButton() {
     return PopupMenuButton<String>(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
-            Text(_globalLanguage.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(_globalLanguage.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const Icon(Icons.expand_more, size: 16),
           ],
         ),
@@ -503,18 +543,41 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
+  // UI language picker (new)
+  Widget _buildUiLangButton() {
+    return ValueListenableBuilder<String>(
+      valueListenable: I18nService.langNotifier,
+      builder: (_, currentLang, __) => PopupMenuButton<String>(
+        tooltip: I18nService.t('hub.uiLanguage'),
+        icon: const Icon(Icons.language),
+        itemBuilder: (_) => I18nService.supportedLangs
+            .map((lang) => PopupMenuItem(
+                  value: lang,
+                  child: Row(children: [
+                    if (lang == currentLang)
+                      const Icon(Icons.check, size: 16, color: Colors.green)
+                    else
+                      const SizedBox(width: 16),
+                    const SizedBox(width: 4),
+                    Text(lang.toUpperCase()),
+                  ]),
+                ))
+            .toList(),
+        onSelected: I18nService.setLang,
+      ),
+    );
+  }
+
   // ── Wide (desktop/tablet) layout ──
   Widget _buildWideLayout() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Sidebar
         SizedBox(
           width: 220,
           child: _buildSidebarContent(),
         ),
         const VerticalDivider(width: 1),
-        // Main content
         Expanded(child: _buildMainContent()),
       ],
     );
@@ -533,7 +596,6 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
-  // ── Drawer for mobile ──
   Drawer _buildDrawer() {
     return Drawer(
       child: SafeArea(child: _buildSidebarContent()),
@@ -558,11 +620,12 @@ class _HubScreenState extends State<HubScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
           child: Row(
             children: [
-              const Text('Folders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(I18nService.t('hub.folders'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.create_new_folder_outlined, size: 20),
-                tooltip: 'New root folder',
+                tooltip: I18nService.t('hub.newRootFolder'),
                 onPressed: () => showAddFolderDialog(context, onCreate: _createFolder),
               ),
             ],
@@ -590,7 +653,7 @@ class _HubScreenState extends State<HubScreen> {
         const Divider(height: 1),
         ListTile(
           leading: const Icon(Icons.logout),
-          title: const Text('Logout'),
+          title: Text(I18nService.t('hub.logout')),
           onTap: _logout,
         ),
       ],
@@ -603,25 +666,26 @@ class _HubScreenState extends State<HubScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Empty hint
           if (!_canAddContent && _selectedFolderId == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 40),
-              child: Center(child: Text('Select a folder to add links or subfolders', style: TextStyle(color: Colors.grey))),
+            Padding(
+              padding: const EdgeInsets.only(top: 40),
+              child: Center(
+                child: Text(
+                  I18nService.t('hub.selectFolder'),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
             ),
 
-          // Breadcrumbs
           if (_breadcrumbs.isNotEmpty) _buildBreadcrumbs(),
 
-          // Back button for shared
           if (_selectedFolderId == '__shared__')
             TextButton.icon(
               onPressed: _selectRoot,
               icon: const Icon(Icons.arrow_back, size: 16),
-              label: const Text('Back'),
+              label: Text(I18nService.t('hub.back')),
             ),
 
-          // Current folder title
           if (_currentFolderLabel.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -629,13 +693,10 @@ class _HubScreenState extends State<HubScreen> {
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ),
 
-          // Subfolders
           if (_subFolders.isNotEmpty) _buildSubfoldersSection(),
 
-          // Links header + filter
           if (_canAddContent) _buildLinksHeader(),
 
-          // Link grid
           LinkGrid(
             links: _links,
             isLoading: _linksLoading,
@@ -670,7 +731,9 @@ class _HubScreenState extends State<HubScreen> {
                         color: isLast ? null : Theme.of(context).colorScheme.primary,
                         fontWeight: isLast ? FontWeight.w600 : FontWeight.normal)),
               ),
-              if (!isLast) const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›')),
+              if (!isLast)
+                const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4), child: Text('›')),
             ],
           );
         }).toList(),
@@ -689,7 +752,8 @@ class _HubScreenState extends State<HubScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                const Text('Subfolders', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                Text(I18nService.t('hub.subfolders'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                 const Spacer(),
                 Icon(_subfoldersOpen ? Icons.expand_less : Icons.expand_more),
               ],
@@ -725,16 +789,16 @@ class _HubScreenState extends State<HubScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Text('Links', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+          Text(I18nService.t('hub.links'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           const Spacer(),
-          // Filter
           SizedBox(
             width: 200,
             child: TextField(
               controller: _filterCtrl,
               onChanged: (value) => setState(() => _applyFilter(value)),
               decoration: InputDecoration(
-                hintText: 'Filter links',
+                hintText: I18nService.t('hub.filterLinks'),
                 prefixIcon: IconButton(
                   icon: const Icon(Icons.filter_alt_outlined, size: 18),
                   onPressed: () => setState(() => _filterOpen = !_filterOpen),
@@ -742,10 +806,12 @@ class _HubScreenState extends State<HubScreen> {
                 suffixIcon: _filterCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () => setState(() { _filterCtrl.clear(); _applyFilter(); }))
+                        onPressed: () =>
+                            setState(() { _filterCtrl.clear(); _applyFilter(); }))
                     : null,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
             ),
           ),
@@ -753,15 +819,16 @@ class _HubScreenState extends State<HubScreen> {
             const SizedBox(width: 8),
             _buildFilterMenu(),
           ],
-          // AI Summary
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.auto_awesome),
-            tooltip: 'AI Summary',
+            tooltip: I18nService.t('hub.aiSummary'),
             onPressed: () => showSummaryDialog(
               context,
-              onLoad: () => _foldersService.getFolderSummary(_selectedSubFolderId ?? _selectedFolderId!),
-              onGenerate: () => _foldersService.generateFolderSummary(_selectedSubFolderId ?? _selectedFolderId!),
+              onLoad: () => _foldersService
+                  .getFolderSummary(_selectedSubFolderId ?? _selectedFolderId!),
+              onGenerate: () => _foldersService
+                  .generateFolderSummary(_selectedSubFolderId ?? _selectedFolderId!),
             ),
           ),
         ],
@@ -770,6 +837,12 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   Widget _buildFilterMenu() {
+    String modeLabel(String mode) {
+      if (mode == 'both') return I18nService.t('hub.titlePlusDesc');
+      if (mode == 'title') return I18nService.t('hub.title');
+      return I18nService.t('hub.description');
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -779,7 +852,6 @@ class _HubScreenState extends State<HubScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: ['both', 'title', 'description'].map((mode) {
-          final label = mode == 'both' ? 'Title + Description' : mode[0].toUpperCase() + mode.substring(1);
           return InkWell(
             onTap: () => setState(() { _filterMode = mode; _applyFilter(); }),
             child: Padding(
@@ -793,7 +865,7 @@ class _HubScreenState extends State<HubScreen> {
                     onChanged: (v) => setState(() { _filterMode = v!; _applyFilter(); }),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  Text(label, style: const TextStyle(fontSize: 13)),
+                  Text(modeLabel(mode), style: const TextStyle(fontSize: 13)),
                 ],
               ),
             ),
@@ -815,7 +887,7 @@ class _HubScreenState extends State<HubScreen> {
             folderId: _selectedSubFolderId ?? _selectedFolderId,
             onCreate: _createLink,
           ),
-          tooltip: 'Add link',
+          tooltip: I18nService.t('hub.addLink'),
           child: const Icon(Icons.add_link),
         ),
         const SizedBox(height: 8),
@@ -826,7 +898,7 @@ class _HubScreenState extends State<HubScreen> {
             parentId: _selectedSubFolderId ?? _selectedFolderId,
             onCreate: _createFolder,
           ),
-          tooltip: 'New folder',
+          tooltip: I18nService.t('hub.newFolder'),
           child: const Icon(Icons.create_new_folder_outlined),
         ),
       ],

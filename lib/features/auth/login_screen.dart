@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/i18n_service.dart';
 import 'widgets/google_sign_in_button.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -36,12 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (user == null || !mounted) return;
     setState(() { _loading = true; _error = null; });
     try {
-      await AuthService().loginWithGoogleAccount(user, 'en');
+      await AuthService().loginWithGoogleAccount(user, I18nService.currentLang);
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HubScreen()));
       }
     } catch (_) {
-      if (mounted) setState(() { _error = 'Google sign-in failed'; _loading = false; });
+      if (mounted) setState(() { _error = I18nService.t('auth.googleFailed'); _loading = false; });
     }
   }
 
@@ -57,12 +58,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_loading) return;
     setState(() { _loading = true; _error = null; });
     try {
-      await AuthService().loginWithGoogle('en');
+      await AuthService().loginWithGoogle(I18nService.currentLang);
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HubScreen()));
       }
     } catch (_) {
-      setState(() { _error = 'Google sign-in failed'; _loading = false; });
+      setState(() { _error = I18nService.t('auth.googleFailed'); _loading = false; });
     }
   }
 
@@ -75,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HubScreen()));
       }
     } catch (_) {
-      setState(() { _error = 'Invalid email or password'; _loading = false; });
+      setState(() { _error = I18nService.t('auth.invalidCredentials'); _loading = false; });
     }
   }
 
@@ -95,12 +96,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: theme.colorScheme.primary,
               )),
               const SizedBox(height: 8),
-              Text('Welcome back', style: theme.textTheme.titleMedium),
+              Text(I18nService.t('auth.welcomeBack'), style: theme.textTheme.titleMedium),
               const SizedBox(height: 36),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: InputDecoration(labelText: I18nService.t('auth.email')),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -108,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: !_showPass,
                 onSubmitted: (_) => _login(),
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  labelText: I18nService.t('auth.password'),
                   suffixIcon: IconButton(
                     icon: Icon(_showPass ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _showPass = !_showPass),
@@ -124,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
-                  child: const Text('Forgot password?'),
+                  child: Text(I18nService.t('auth.forgotPassword')),
                 ),
               ),
               const SizedBox(height: 8),
@@ -132,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _loading ? null : _login,
                 child: _loading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Log In'),
+                    : Text(I18nService.t('auth.logIn')),
               ),
               const SizedBox(height: 12),
               if (kIsWeb)
@@ -141,16 +142,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 OutlinedButton.icon(
                   onPressed: _loading ? null : _googleLogin,
                   icon: const Icon(Icons.g_mobiledata, size: 22),
-                  label: const Text('Continue with Google'),
+                  label: Text(I18nService.t('auth.continueWithGoogle')),
                 ),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  Text(I18nService.t('auth.noAccount')),
                   TextButton(
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                    child: const Text('Sign up'),
+                    child: Text(I18nService.t('auth.signUp')),
                   ),
                 ],
               ),

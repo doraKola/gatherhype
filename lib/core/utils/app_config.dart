@@ -4,4 +4,5 @@ class AppConfig {
 
   static const String tokenKey = 'auth_token';
   static const String defaultLanguageKey = 'defaultLanguage';
+  static const String uiLanguageKey = 'uiLanguage';
 }

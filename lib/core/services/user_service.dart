@@ -12,4 +12,8 @@ class UserService {
   Future<Map<String, dynamic>> getTranslationSettings() async {
     return await _api.get('$_base/translation-settings') as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> getUserLanguages() async {
+    return await _api.get('$_base/languages') as Map<String, dynamic>;
+  }
 }
